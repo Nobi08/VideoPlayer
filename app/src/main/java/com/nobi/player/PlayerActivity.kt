@@ -217,7 +217,7 @@ class PlayerActivity : AppCompatActivity() {
     top.addView(circ(45, 9, R.drawable.ic_back) { finish() })
     top.addView(ttl)
     top.addView(circ(45, 9, R.drawable.b_sub) { TrackSelectionDialogBuilder(this, "Subtitles", p, C.TRACK_TYPE_TEXT).build().show() })
-    top.addView(circ(45, 9, R.drawable.ic_audio) { TrackSelectionDialogBuilder(this, "Audio track", p, C.TRACK_TYPE_AUDIO).build().show() })
+    top.addView(circ(34, 8, R.drawable.ic_audio) { TrackSelectionDialogBuilder(this, "Audio track", p, C.TRACK_TYPE_AUDIO).build().show() })
     val repBtn = circ(45, 9, R.drawable.b_repeat) {}
     repBtn.setOnClickListener {
       val on = p.repeatMode != Player.REPEAT_MODE_ONE
@@ -255,19 +255,6 @@ class PlayerActivity : AppCompatActivity() {
     }
     ctrl.addView(rotBtn, FrameLayout.LayoutParams(dp(38), dp(38), Gravity.END or Gravity.CENTER_VERTICAL).apply { marginEnd = dp(16) })
     updateRot()
-    var clipStart = -1L
-    val cut = circ(48, 10, R.drawable.ic_cut) {}
-    cut.setOnClickListener {
-      val u = p.currentMediaItem?.localConfiguration?.uri
-      if (u != null) {
-        if (clipStart < 0) { clipStart = p.currentPosition; cut.setColorFilter(ORANGE); flash("Clip start " + fmt(clipStart) + " - tap again for end") }
-        else {
-          val e = p.currentPosition; val s0 = clipStart; clipStart = -1L; cut.clearColorFilter()
-          if (e - s0 < 500) flash("Clip too short") else saveClip(u, s0, e)
-        }
-      }
-    }
-    ctrl.addView(cut, FrameLayout.LayoutParams(dp(38), dp(38), Gravity.END or Gravity.CENTER_VERTICAL).apply { marginEnd = dp(16); bottomMargin = dp(120) })
 
     lockBtn = circ(48, 10, R.drawable.ic_unlock) {
       locked = !locked
