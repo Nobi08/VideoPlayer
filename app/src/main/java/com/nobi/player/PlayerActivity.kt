@@ -214,19 +214,19 @@ class PlayerActivity : AppCompatActivity() {
       setPadding(dp(6), 0, dp(6), 0)
     }
     val top = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(6), dp(8), dp(6)) }
-    top.addView(circ(45, 9, R.drawable.ic_back) { finish() })
+    top.addView(circ(42, 8, R.drawable.ic_back) { finish() })
     top.addView(ttl)
-    top.addView(circ(45, 9, R.drawable.b_sub) { TrackSelectionDialogBuilder(this, "Subtitles", p, C.TRACK_TYPE_TEXT).build().show() })
-    top.addView(circ(45, 9, R.drawable.b_audio) { TrackSelectionDialogBuilder(this, "Audio track", p, C.TRACK_TYPE_AUDIO).build().show() })
-    val repBtn = circ(45, 9, R.drawable.b_repeat) {}
+    top.addView(circ(42, 8, R.drawable.b_sub) { TrackSelectionDialogBuilder(this, "Subtitles", p, C.TRACK_TYPE_TEXT).build().show() })
+    top.addView(circ(42, 8, R.drawable.b_audio) { TrackSelectionDialogBuilder(this, "Audio track", p, C.TRACK_TYPE_AUDIO).build().show() })
+    val repBtn = circ(42, 8, R.drawable.b_repeat) {}
     repBtn.setOnClickListener {
       val on = p.repeatMode != Player.REPEAT_MODE_ONE
       p.repeatMode = if (on) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-      mark(repBtn, 45, on, ORANGE)
+      mark(repBtn, 42, on, ORANGE)
       flash(if (on) "Repeat: on" else "Repeat: off")
     }
     top.addView(repBtn)
-    val gear = circ(45, 9, R.drawable.b_gear) {}
+    val gear = circ(42, 8, R.drawable.b_gear) {}
     gear.setOnClickListener {
       val m = PopupMenu(this, gear)
       m.menu.add("Load subtitle file"); m.menu.add("Subtitle size"); m.menu.add("Subtitle color")
