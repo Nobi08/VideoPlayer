@@ -61,6 +61,9 @@ class PlayerActivity : AppCompatActivity() {
     }
   }
 
+  private lateinit var rotBtn: ImageView
+  private fun updateRot() { rotBtn.setImageResource(if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) R.drawable.ic_rot_land else R.drawable.ic_rot_port) }
+  override fun onConfigurationChanged(c: Configuration) { super.onConfigurationChanged(c); if (::rotBtn.isInitialized) updateRot() }
   private fun dp(i: Int) = (i * resources.displayMetrics.density).toInt()
   private fun fmt(ms: Long): String {
     val s = ms / 1000; val hh = s / 3600; val mm = (s % 3600) / 60; val ss = s % 60
@@ -145,14 +148,15 @@ class PlayerActivity : AppCompatActivity() {
     val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
     left.addView(pill("-30") { seekBy(-30000) }); left.addView(mute)
     ctrl.addView(left, FrameLayout.LayoutParams(-2, -2, Gravity.START or Gravity.CENTER_VERTICAL).apply { marginStart = dp(16); bottomMargin = dp(140) })
-    val rot = TextView(this).apply {
-      text = "↻"; textSize = 26f; setTextColor(W); gravity = Gravity.CENTER
-      layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+    rotBtn = ImageView(this).apply {
+      setPadding(dp(10), dp(10), dp(10), dp(10)); layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
       setOnClickListener {
         requestedOrientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
           ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
       }
     }
+    val rot = rotBtn
+    updateRot()
     val right = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
     right.addView(pill("+30") { seekBy(30000) }); right.addView(rot)
     ctrl.addView(right, FrameLayout.LayoutParams(-2, -2, Gravity.END or Gravity.CENTER_VERTICAL).apply { marginEnd = dp(16); bottomMargin = dp(140) })
