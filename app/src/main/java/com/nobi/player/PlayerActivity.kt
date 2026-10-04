@@ -217,7 +217,7 @@ class PlayerActivity : AppCompatActivity() {
     top.addView(circ(45, 9, R.drawable.ic_back) { finish() })
     top.addView(ttl)
     top.addView(circ(45, 9, R.drawable.b_sub) { TrackSelectionDialogBuilder(this, "Subtitles", p, C.TRACK_TYPE_TEXT).build().show() })
-    top.addView(circ(34, 8, R.drawable.b_audio) { TrackSelectionDialogBuilder(this, "Audio track", p, C.TRACK_TYPE_AUDIO).build().show() })
+    top.addView(circ(45, 9, R.drawable.b_audio) { TrackSelectionDialogBuilder(this, "Audio track", p, C.TRACK_TYPE_AUDIO).build().show() })
     val repBtn = circ(45, 9, R.drawable.b_repeat) {}
     repBtn.setOnClickListener {
       val on = p.repeatMode != Player.REPEAT_MODE_ONE
