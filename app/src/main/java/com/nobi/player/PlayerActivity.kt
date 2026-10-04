@@ -187,7 +187,7 @@ class PlayerActivity : AppCompatActivity() {
     val GREEN = 0xFF4CAF50.toInt()
     fun circ(sz: Int, pad: Int, r: Int, f: () -> Unit) = ImageView(this).apply {
       val png = resources.getResourceEntryName(r).startsWith("b_")
-      val pp = if (png) sz * 14 / 100 else sz * 30 / 100
+      val pp = if (png) sz * 4 / 100 else sz * 30 / 100
       setImageResource(r); setPadding(dp(pp), dp(pp), dp(pp), dp(pp))
       if (!png) background = InsetDrawable(GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0xE60B0B0C.toInt()) }, dp(sz * 14 / 100))
       layoutParams = LinearLayout.LayoutParams(dp(sz), dp(sz))
@@ -214,28 +214,19 @@ class PlayerActivity : AppCompatActivity() {
       setPadding(dp(6), 0, dp(6), 0)
     }
     val top = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(6), dp(8), dp(6)) }
-    top.addView(circ(36, 9, R.drawable.ic_back) { finish() })
+    top.addView(circ(45, 9, R.drawable.ic_back) { finish() })
     top.addView(ttl)
-    top.addView(circ(36, 9, R.drawable.b_sub) { TrackSelectionDialogBuilder(this, "Subtitles", p, C.TRACK_TYPE_TEXT).build().show() })
-    top.addView(circ(36, 9, R.drawable.ic_audio) { TrackSelectionDialogBuilder(this, "Audio track", p, C.TRACK_TYPE_AUDIO).build().show() })
-    val repBtn = circ(36, 9, R.drawable.b_repeat) {}
+    top.addView(circ(45, 9, R.drawable.b_sub) { TrackSelectionDialogBuilder(this, "Subtitles", p, C.TRACK_TYPE_TEXT).build().show() })
+    top.addView(circ(45, 9, R.drawable.ic_audio) { TrackSelectionDialogBuilder(this, "Audio track", p, C.TRACK_TYPE_AUDIO).build().show() })
+    val repBtn = circ(45, 9, R.drawable.b_repeat) {}
     repBtn.setOnClickListener {
       val on = p.repeatMode != Player.REPEAT_MODE_ONE
       p.repeatMode = if (on) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-      mark(repBtn, 36, on, ORANGE)
+      mark(repBtn, 45, on, ORANGE)
       flash(if (on) "Repeat: on" else "Repeat: off")
     }
     top.addView(repBtn)
-    val abBtn = circ(36, 9, R.drawable.b_ab) {}
-    abBtn.setOnClickListener {
-      if (abA < 0) { abA = p.currentPosition; mark(abBtn, 36, true, ORANGE); flash("A  " + fmt(abA)) }
-      else if (abB < 0) {
-        if (p.currentPosition > abA + 500) { abB = p.currentPosition; mark(abBtn, 36, true, GREEN); flash("B  " + fmt(abB)); h.post(abRun) }
-        else flash("B must be after A")
-      } else { abA = -1L; abB = -1L; mark(abBtn, 36, false, 0); h.removeCallbacks(abRun); flash("A-B loop off") }
-    }
-    top.addView(abBtn)
-    val gear = circ(36, 9, R.drawable.b_gear) {}
+    val gear = circ(45, 9, R.drawable.b_gear) {}
     gear.setOnClickListener {
       val m = PopupMenu(this, gear)
       m.menu.add("Load subtitle file"); m.menu.add("Subtitle size"); m.menu.add("Subtitle color")
@@ -258,14 +249,14 @@ class PlayerActivity : AppCompatActivity() {
     top.addView(gear)
     ctrl.addView(top, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
 
-    rotBtn = circ(38, 10, R.drawable.ic_rot_port) {
+    rotBtn = circ(48, 10, R.drawable.ic_rot_port) {
       requestedOrientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
         ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
     }
     ctrl.addView(rotBtn, FrameLayout.LayoutParams(dp(38), dp(38), Gravity.END or Gravity.CENTER_VERTICAL).apply { marginEnd = dp(16) })
     updateRot()
     var clipStart = -1L
-    val cut = circ(38, 10, R.drawable.ic_cut) {}
+    val cut = circ(48, 10, R.drawable.ic_cut) {}
     cut.setOnClickListener {
       val u = p.currentMediaItem?.localConfiguration?.uri
       if (u != null) {
@@ -278,7 +269,7 @@ class PlayerActivity : AppCompatActivity() {
     }
     ctrl.addView(cut, FrameLayout.LayoutParams(dp(38), dp(38), Gravity.END or Gravity.CENTER_VERTICAL).apply { marginEnd = dp(16); bottomMargin = dp(120) })
 
-    lockBtn = circ(38, 10, R.drawable.ic_unlock) {
+    lockBtn = circ(48, 10, R.drawable.ic_unlock) {
       locked = !locked
       lockBtn.setImageResource(if (locked) R.drawable.ic_lock else R.drawable.ic_unlock)
       showCtrl(true)
@@ -302,18 +293,18 @@ class PlayerActivity : AppCompatActivity() {
     ctrl.addView(seekRow, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { bottomMargin = dp(68) })
 
     var muted = false
-    val mute = circ(34, 8, R.drawable.b_vol) {}
+    val mute = circ(42, 8, R.drawable.b_vol) {}
     mute.setOnClickListener {
       muted = !muted; p.volume = if (muted) 0f else 1f
       mute.setImageResource(if (muted) R.drawable.b_mute else R.drawable.b_vol)
     }
     val play = ImageView(this).apply {
       setImageResource(R.drawable.b_pause); setPadding(dp(2), dp(2), dp(2), dp(2))
-      layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+      layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
       setOnClickListener { if (p.isPlaying) p.pause() else p.play() }
     }
     val sp = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
-    val speed = circ(34, 8, R.drawable.b_speed) {}
+    val speed = circ(42, 8, R.drawable.b_speed) {}
     speed.setOnClickListener {
       AlertDialog.Builder(this).setItems(sp.map { sx(it) }.toTypedArray()) { _, i ->
         p.setPlaybackSpeed(sp[i]); prefs.edit().putFloat("speed", sp[i]).apply(); flash(sx(sp[i]))
@@ -323,20 +314,18 @@ class PlayerActivity : AppCompatActivity() {
     val modes = intArrayOf(AspectRatioFrameLayout.RESIZE_MODE_FIT, AspectRatioFrameLayout.RESIZE_MODE_ZOOM, AspectRatioFrameLayout.RESIZE_MODE_FILL)
     val modeNames = arrayOf("Fit", "Zoom", "Stretch")
     var mi = prefs.getInt("aspect", 0).coerceIn(0, 2); v.resizeMode = modes[mi]
-    val aspect = circ(34, 8, R.drawable.b_full) {
+    val aspect = circ(42, 8, R.drawable.b_full) {
       mi = (mi + 1) % 3; v.resizeMode = modes[mi]; prefs.edit().putInt("aspect", mi).apply(); flash(modeNames[mi])
     }
-    val pip = circ(34, 8, R.drawable.b_pip) {
+    val pip = circ(42, 8, R.drawable.b_pip) {
       if (Build.VERSION.SDK_INT >= 26) enterPictureInPictureMode(PictureInPictureParams.Builder().build())
     }
     fun gapView() = View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) }
     val bottom = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(4), dp(8), dp(8)) }
     bottom.addView(mute); bottom.addView(gapView())
-    bottom.addView(circ(34, 8, R.drawable.b_prev) { p.seekToPreviousMediaItem() })
-    bottom.addView(circ(34, 8, R.drawable.b_rew) { seekBy(-10000); flash("-10s") })
+    bottom.addView(circ(42, 8, R.drawable.b_prev) { p.seekToPreviousMediaItem() })
     bottom.addView(play)
-    bottom.addView(circ(34, 8, R.drawable.b_fwd) { seekBy(10000); flash("+10s") })
-    bottom.addView(circ(34, 8, R.drawable.b_next) { p.seekToNextMediaItem() })
+    bottom.addView(circ(42, 8, R.drawable.b_next) { p.seekToNextMediaItem() })
     bottom.addView(gapView())
     bottom.addView(speed); bottom.addView(aspect); bottom.addView(pip)
     ctrl.addView(bottom, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
@@ -354,7 +343,7 @@ class PlayerActivity : AppCompatActivity() {
         if (r == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || r == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
           lastKey?.let { val s0 = prefs.getLong(it, 0L); if (s0 > 5000) p.seekTo(s0) }
         }
-        abA = -1L; abB = -1L; mark(abBtn, 36, false, 0); h.removeCallbacks(abRun)
+        abA = -1L; abB = -1L; h.removeCallbacks(abRun)
       }
       override fun onPlaybackStateChanged(st: Int) { if (st == Player.STATE_ENDED) curKey()?.let { prefs.edit().remove(it).apply() } }
     })
