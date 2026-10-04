@@ -146,7 +146,6 @@ class PlayerActivity : AppCompatActivity() {
     var muted = false
     val mute = ic(R.drawable.ic_vol) {}
     mute.setOnClickListener { muted = !muted; p.volume = if (muted) 0f else 1f; mute.alpha = if (muted) 0.4f else 1f }
-    ctrl.addView(mute, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.START).apply { marginStart = dp(16) })
     rotBtn = ImageView(this).apply {
       setPadding(dp(10), dp(10), dp(10), dp(10))
       setOnClickListener {
@@ -156,16 +155,6 @@ class PlayerActivity : AppCompatActivity() {
     }
     ctrl.addView(rotBtn, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.END or Gravity.CENTER_VERTICAL).apply { marginEnd = dp(16) })
     updateRot()
-    fun placeMute() {
-      val vs = p.videoSize; val vw = v.width; val vh = v.height
-      if (vw == 0 || vh == 0) return
-      val dispH = if (vs.width > 0 && vs.height > 0) minOf(vw.toFloat() / vs.width, vh.toFloat() / vs.height) * vs.height else vh.toFloat()
-      val ny = (((vh + dispH) / 2).toInt() + dp(8)).coerceAtMost(vh - dp(170))
-      val lp = mute.layoutParams as FrameLayout.LayoutParams
-      if (lp.topMargin != ny) { lp.topMargin = ny; mute.layoutParams = lp }
-    }
-    v.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> placeMute() }
-    p.addListener(object : Player.Listener { override fun onVideoSizeChanged(vz: VideoSize) { placeMute() } })
 
     // lock
     lockBtn = ic(R.drawable.ic_unlock) {}
@@ -197,7 +186,7 @@ class PlayerActivity : AppCompatActivity() {
     val play = ImageView(this).apply {
       setImageResource(R.drawable.ic_pause); setPadding(dp(14), dp(14), dp(14), dp(14))
       background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setStroke(dp(2), W) }
-      layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
+      layoutParams = LinearLayout.LayoutParams(dp(50), dp(50))
       setOnClickListener { if (p.isPlaying) p.pause() else p.play() }
     }
     val sp = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
@@ -217,19 +206,19 @@ class PlayerActivity : AppCompatActivity() {
     val hudHide = Runnable { hud.visibility = View.GONE }
     fun flash(t: String) { hud.text = t; hud.visibility = View.VISIBLE; h.removeCallbacks(hudHide); h.postDelayed(hudHide, 700) }
     val bottom = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(12), dp(4), dp(12), dp(8)) }
-    bottom.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
+    fun gapView() = View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) }
+    fun small(x: ImageView) = x.also { it.layoutParams = LinearLayout.LayoutParams(dp(40), dp(48)); it.setPadding(dp(8), dp(12), dp(8), dp(12)) }
+    bottom.addView(mute); bottom.addView(gapView())
+    bottom.addView(small(ic(R.drawable.ic_prev) { p.seekToPreviousMediaItem() }))
+    bottom.addView(play)
+    bottom.addView(small(ic(R.drawable.ic_next) { p.seekToNextMediaItem() }))
+    bottom.addView(gapView())
     bottom.addView(speed)
     bottom.addView(box("↔", true) { mi = (mi + 1) % 3; v.resizeMode = modes[mi]; flash(modeNames[mi]) })
     bottom.addView(ic(R.drawable.ic_pip) {
       if (Build.VERSION.SDK_INT >= 26) enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
     })
     ctrl.addView(bottom, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
-    val mid = LinearLayout(this).apply { gravity = Gravity.CENTER }
-    fun gap(x: ImageView) = x.also { (it.layoutParams as LinearLayout.LayoutParams).setMargins(dp(22), 0, dp(22), 0) }
-    mid.addView(gap(ic(R.drawable.ic_prev) { p.seekToPreviousMediaItem() }))
-    mid.addView(play)
-    mid.addView(gap(ic(R.drawable.ic_next) { p.seekToNextMediaItem() }))
-    ctrl.addView(mid, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
     root.addView(hud, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(80) })
 
     p.addListener(object : Player.Listener {
