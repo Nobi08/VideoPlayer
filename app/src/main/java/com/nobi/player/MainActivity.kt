@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
       lv.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, vs.map { "🎬 ${it.name}" })
       lv.setOnItemClickListener { _, _, i, _ ->
         skip = true
-        startActivity(Intent(this, PlayerActivity::class.java).putStringArrayListExtra("uris", ArrayList(vs.map { it.uri })).putExtra("i", i))
+        startActivity(Intent(this, PlayerActivity::class.java).putStringArrayListExtra("uris", ArrayList(vs.map { it.uri })).putExtra("i", i).putStringArrayListExtra("names", ArrayList(vs.map { it.name })))
       }
     }
   }
