@@ -49,14 +49,20 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     val row = LinearLayout(this); row.gravity = Gravity.CENTER
-    fun btn(t: String, f: () -> Unit) = Button(this).apply { text = t; setOnClickListener { f() } }
-    row.addView(btn("⏪ 30") { p.seekTo((p.currentPosition - 30000).coerceAtLeast(0)) })
-    row.addView(btn("30 ⏩") { p.seekTo(p.currentPosition + 30000) })
-    row.addView(btn("🔄") {
+    fun btn(t: String, f: () -> Unit) = android.widget.TextView(this).apply {
+      text = t; setTextColor(0xFFFFFFFF.toInt()); textSize = 13f; gravity = Gravity.CENTER
+      setPadding(36, 14, 36, 14)
+      background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 100f; setColor(0x66000000) }
+      layoutParams = LinearLayout.LayoutParams(-2, -2).apply { setMargins(12, 0, 12, 0) }
+      setOnClickListener { f() }
+    }
+    row.addView(btn("-30s") { p.seekTo((p.currentPosition - 30000).coerceAtLeast(0)) })
+    row.addView(btn("+30s") { p.seekTo(p.currentPosition + 30000) })
+    row.addView(btn("↻") {
       requestedOrientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
         ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
     })
-    root.addView(row, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+    root.addView(row, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = 36 })
     v.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { row.visibility = it })
 
     val am = getSystemService(AUDIO_SERVICE) as AudioManager
