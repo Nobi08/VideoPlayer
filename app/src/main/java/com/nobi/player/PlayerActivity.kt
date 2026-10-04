@@ -6,6 +6,17 @@ import android.graphics.drawable.GradientDrawable
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.content.ContentValues
+import android.graphics.Color
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaMuxer
+import android.net.Uri
+import android.provider.MediaStore
+import android.util.TypedValue
+import android.widget.Toast
+import androidx.media3.ui.CaptionStyleCompat
+import java.nio.ByteBuffer
 import android.os.Handler
 import android.os.Looper
 import android.view.GestureDetector
@@ -42,6 +53,8 @@ class PlayerActivity : AppCompatActivity() {
   private lateinit var ctrl: FrameLayout
   private lateinit var lockBtn: ImageView
   private val h = Handler(Looper.getMainLooper())
+  private val prefs by lazy { getSharedPreferences("player", MODE_PRIVATE) }
+  private var lastKey: String? = null
   private var mode = 0
   private var hold = 0
   private var prevSpeed = 1f
@@ -65,6 +78,59 @@ class PlayerActivity : AppCompatActivity() {
   private lateinit var rotBtn: ImageView
   private fun updateRot() { rotBtn.setImageResource(if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) R.drawable.ic_rot_land else R.drawable.ic_rot_port) }
   override fun onConfigurationChanged(c: Configuration) { super.onConfigurationChanged(c); if (::rotBtn.isInitialized) updateRot() }
+  private fun curKey() = p.currentMediaItem?.localConfiguration?.uri?.toString()
+  private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_LONG).show()
+  private fun applySub(v: PlayerView) {
+    val sz = prefs.getInt("subsz", 20); val col = prefs.getInt("subcol", Color.WHITE)
+    v.subtitleView?.apply {
+      setApplyEmbeddedStyles(false); setApplyEmbeddedFontSizes(false)
+      setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, sz.toFloat())
+      setStyle(CaptionStyleCompat(col, Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, null))
+    }
+  }
+  private fun saveClip(src: Uri, s: Long, e: Long) {
+    if (Build.VERSION.SDK_INT < 29) { toast("Clip needs Android 10+"); return }
+    toast("Saving clip...")
+    Thread {
+      var out: Uri? = null
+      try {
+        val ex = MediaExtractor(); ex.setDataSource(this, src, null)
+        val cv = ContentValues().apply {
+          put(MediaStore.Video.Media.DISPLAY_NAME, "clip_${System.currentTimeMillis()}.mp4")
+          put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+          put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/Clips")
+        }
+        out = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cv)
+        val pfd = contentResolver.openFileDescriptor(out!!, "w")!!
+        val mux = MediaMuxer(pfd.fileDescriptor, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        val map = HashMap<Int, Int>()
+        for (i in 0 until ex.trackCount) {
+          try { map[i] = mux.addTrack(ex.getTrackFormat(i)); ex.selectTrack(i) } catch (x: Exception) {}
+        }
+        if (map.isEmpty()) throw Exception("no supported tracks")
+        mux.start()
+        ex.seekTo(s * 1000, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+        val buf = ByteBuffer.allocate(4 * 1024 * 1024)
+        val info = MediaCodec.BufferInfo()
+        var base = -1L
+        while (true) {
+          val n = ex.readSampleData(buf, 0)
+          if (n < 0) break
+          val t = ex.sampleTime
+          if (t > e * 1000) break
+          if (base < 0) base = t
+          info.set(0, n, (t - base).coerceAtLeast(0L), ex.sampleFlags)
+          mux.writeSampleData(map[ex.sampleTrackIndex]!!, buf, info)
+          ex.advance()
+        }
+        mux.stop(); mux.release(); pfd.close(); ex.release()
+        runOnUiThread { toast("Clip saved in Movies/Clips") }
+      } catch (x: Exception) {
+        out?.let { try { contentResolver.delete(it, null, null) } catch (y: Exception) {} }
+        runOnUiThread { toast("Clip failed: ${x.message}") }
+      }
+    }.start()
+  }
   private fun dp(i: Int) = (i * resources.displayMetrics.density).toInt()
   private fun fmt(ms: Long): String {
     val s = ms / 1000; val hh = s / 3600; val mm = (s % 3600) / 60; val ss = s % 60
@@ -91,7 +157,11 @@ class PlayerActivity : AppCompatActivity() {
     setContentView(root)
     p = ExoPlayer.Builder(this).build()
     v.player = p
-    p.setMediaItems(intent.getStringArrayListExtra("uris")!!.map { MediaItem.fromUri(it) }, intent.getIntExtra("i", 0), 0L)
+    applySub(v)
+    val uris = intent.getStringArrayListExtra("uris")!!
+    val si = intent.getIntExtra("i", 0)
+    val saved = prefs.getLong(uris[si], 0L)
+    p.setMediaItems(uris.map { MediaItem.fromUri(it) }, si, if (saved > 5000) saved else 0L)
     p.prepare(); p.play()
     WindowCompat.getInsetsController(window, v).apply {
       hide(WindowInsetsCompat.Type.systemBars())
@@ -130,11 +200,21 @@ class PlayerActivity : AppCompatActivity() {
     val more = ic(R.drawable.ic_more) {}
     more.setOnClickListener {
       val m = PopupMenu(this, more)
-      m.menu.add("Load subtitle file")
+      m.menu.add("Load subtitle file"); m.menu.add("Subtitle size"); m.menu.add("Subtitle color")
       m.menu.add(if (p.repeatMode == Player.REPEAT_MODE_ONE) "Repeat: off" else "Repeat: one")
-      m.setOnMenuItemClickListener { mi ->
-        if (mi.title.toString().startsWith("Load")) subPick.launch(arrayOf("*/*"))
-        else p.repeatMode = if (p.repeatMode == Player.REPEAT_MODE_ONE) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE
+      m.setOnMenuItemClickListener { it2 ->
+        when (it2.title.toString()) {
+          "Load subtitle file" -> subPick.launch(arrayOf("*/*"))
+          "Subtitle size" -> {
+            val n = arrayOf("Small", "Medium", "Large", "Huge"); val z = intArrayOf(16, 20, 26, 34)
+            AlertDialog.Builder(this).setItems(n) { _, i -> prefs.edit().putInt("subsz", z[i]).apply(); applySub(v) }.show()
+          }
+          "Subtitle color" -> {
+            val n = arrayOf("White", "Yellow", "Cyan", "Green"); val c = intArrayOf(Color.WHITE, Color.YELLOW, Color.CYAN, Color.GREEN)
+            AlertDialog.Builder(this).setItems(n) { _, i -> prefs.edit().putInt("subcol", c[i]).apply(); applySub(v) }.show()
+          }
+          else -> p.repeatMode = if (p.repeatMode == Player.REPEAT_MODE_ONE) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE
+        }
         true
       }
       m.show()
@@ -193,18 +273,32 @@ class PlayerActivity : AppCompatActivity() {
     val speed = TextView(this).apply { text = "Speed"; textSize = 15f; setTextColor(W); setPadding(dp(8), dp(8), dp(8), dp(8)) }
     speed.setOnClickListener {
       AlertDialog.Builder(this).setItems(sp.map { "${it}x" }.toTypedArray()) { _, i ->
-        p.setPlaybackSpeed(sp[i]); speed.text = if (sp[i] == 1f) "Speed" else "${sp[i]}x"
+        p.setPlaybackSpeed(sp[i]); prefs.edit().putFloat("speed", sp[i]).apply(); speed.text = if (sp[i] == 1f) "Speed" else "${sp[i]}x"
       }.show()
     }
+    prefs.getFloat("speed", 1f).let { if (it != 1f) { p.setPlaybackSpeed(it); speed.text = "${it}x" } }
     val modes = intArrayOf(AspectRatioFrameLayout.RESIZE_MODE_FIT, AspectRatioFrameLayout.RESIZE_MODE_ZOOM, AspectRatioFrameLayout.RESIZE_MODE_FILL)
     val modeNames = arrayOf("Fit", "Zoom", "Stretch")
-    var mi = 0
+    var mi = prefs.getInt("aspect", 0).coerceIn(0, 2); v.resizeMode = modes[mi]
     val hud = TextView(this).apply {
       setTextColor(W); textSize = 18f; setPadding(dp(16), dp(8), dp(16), dp(8)); visibility = View.GONE
       background = GradientDrawable().apply { cornerRadius = dp(20).toFloat(); setColor(0xAA000000.toInt()) }
     }
     val hudHide = Runnable { hud.visibility = View.GONE }
     fun flash(t: String) { hud.text = t; hud.visibility = View.VISIBLE; h.removeCallbacks(hudHide); h.postDelayed(hudHide, 700) }
+    var clipStart = -1L
+    val cut = ImageView(this).apply { setImageResource(R.drawable.ic_cut); setPadding(dp(10), dp(10), dp(10), dp(10)) }
+    cut.setOnClickListener {
+      val u = p.currentMediaItem?.localConfiguration?.uri
+      if (u == null) return@setOnClickListener
+      if (clipStart < 0) {
+        clipStart = p.currentPosition; cut.setColorFilter(0xFFFF9800.toInt()); flash("Clip start " + fmt(clipStart) + " - tap scissors again for end")
+      } else {
+        val e = p.currentPosition; val s0 = clipStart; clipStart = -1L; cut.clearColorFilter()
+        if (e - s0 < 500) flash("Clip too short") else saveClip(u, s0, e)
+      }
+    }
+    ctrl.addView(cut, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.END or Gravity.CENTER_VERTICAL).apply { marginEnd = dp(16); bottomMargin = dp(112) })
     val bottom = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(12), dp(4), dp(12), dp(8)) }
     fun gapView() = View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) }
     fun small(x: ImageView) = x.also { it.layoutParams = LinearLayout.LayoutParams(dp(40), dp(48)); it.setPadding(dp(8), dp(12), dp(8), dp(12)) }
@@ -214,7 +308,7 @@ class PlayerActivity : AppCompatActivity() {
     bottom.addView(small(ic(R.drawable.ic_next) { p.seekToNextMediaItem() }))
     bottom.addView(gapView())
     bottom.addView(speed)
-    bottom.addView(box("↔", true) { mi = (mi + 1) % 3; v.resizeMode = modes[mi]; flash(modeNames[mi]) })
+    bottom.addView(box("↔", true) { mi = (mi + 1) % 3; v.resizeMode = modes[mi]; prefs.edit().putInt("aspect", mi).apply(); flash(modeNames[mi]) })
     bottom.addView(ic(R.drawable.ic_pip) {
       if (Build.VERSION.SDK_INT >= 26) enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
     })
@@ -223,7 +317,16 @@ class PlayerActivity : AppCompatActivity() {
 
     p.addListener(object : Player.Listener {
       override fun onIsPlayingChanged(pl: Boolean) { play.setImageResource(if (pl) R.drawable.ic_pause else R.drawable.ic_play) }
-      override fun onMediaItemTransition(m: MediaItem?, r: Int) { ttl.text = names.getOrNull(p.currentMediaItemIndex) ?: "" }
+      override fun onMediaItemTransition(m: MediaItem?, r: Int) {
+        ttl.text = names.getOrNull(p.currentMediaItemIndex) ?: ""
+        val k = m?.localConfiguration?.uri?.toString()
+        if (r == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) lastKey?.let { prefs.edit().remove(it).apply() }
+        lastKey = k
+        if (k != null && r != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT && r != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+          val sp0 = prefs.getLong(k, 0L); if (sp0 > 5000) p.seekTo(sp0)
+        }
+      }
+      override fun onPlaybackStateChanged(st: Int) { if (st == Player.STATE_ENDED) curKey()?.let { prefs.edit().remove(it).apply() } }
     })
     val tick = object : Runnable {
       override fun run() {
@@ -232,7 +335,7 @@ class PlayerActivity : AppCompatActivity() {
           sb.max = d.toInt(); sb.progress = p.currentPosition.toInt()
           cur.text = fmt(p.currentPosition); dur.text = fmt(d)
         }
-        h.postDelayed(this, 500)
+        if (p.isPlaying) curKey()?.let { prefs.edit().putLong(it, p.currentPosition).apply() }; h.postDelayed(this, 500)
       }
     }
     h.post(tick)
@@ -296,6 +399,6 @@ class PlayerActivity : AppCompatActivity() {
     super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
     ov.visibility = if (isInPictureInPictureMode) View.GONE else View.VISIBLE
   }
-  override fun onStop() { super.onStop(); p.pause() }
+  override fun onStop() { super.onStop(); p.pause(); if (p.playbackState != Player.STATE_ENDED) curKey()?.let { prefs.edit().putLong(it, p.currentPosition).apply() } }
   override fun onDestroy() { super.onDestroy(); h.removeCallbacksAndMessages(null); p.release() }
 }
