@@ -6,6 +6,8 @@ import android.graphics.drawable.GradientDrawable
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
+import androidx.media3.common.AudioAttributes
 import android.content.ContentValues
 import android.graphics.Color
 import android.media.MediaCodec
@@ -149,16 +151,17 @@ class PlayerActivity : AppCompatActivity() {
 
   override fun onCreate(b: Bundle?) {
     super.onCreate(b)
-    val names = intent.getStringArrayListExtra("names") ?: arrayListOf()
+    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    val names = intent.getStringArrayListExtra("names") ?: arrayListOf(intent.data?.lastPathSegment?.substringAfterLast('/') ?: "")
     val v = PlayerView(this); v.useController = false
     val root = FrameLayout(this); root.setBackgroundColor(0xFF000000.toInt()); root.addView(v)
     ov = FrameLayout(this); root.addView(ov)
     ctrl = FrameLayout(this); ov.addView(ctrl)
     setContentView(root)
-    p = ExoPlayer.Builder(this).build()
+    p = ExoPlayer.Builder(this).setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true).setHandleAudioBecomingNoisy(true).build()
     v.player = p
     applySub(v)
-    val uris = intent.getStringArrayListExtra("uris")!!
+    val uris = intent.getStringArrayListExtra("uris") ?: arrayListOf(intent.dataString ?: "")
     val si = intent.getIntExtra("i", 0)
     val saved = prefs.getLong(uris[si], 0L)
     p.setMediaItems(uris.map { MediaItem.fromUri(it) }, si, if (saved > 5000) saved else 0L)

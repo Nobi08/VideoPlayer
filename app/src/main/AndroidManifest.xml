@@ -1,11 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-  <application android:label="Player" android:theme="@style/Theme.AppCompat.NoActionBar">
+  <application android:icon="@drawable/ic_launcher" android:label="Player" android:theme="@style/Theme.AppCompat.NoActionBar">
     <activity android:name=".MainActivity" android:exported="true">
       <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
     </activity>
-    <activity android:name=".PlayerActivity" android:exported="false" android:supportsPictureInPicture="true"
-      android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"/>
+    <activity android:name=".PlayerActivity" android:exported="true" android:supportsPictureInPicture="true"
+      android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"><intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="content"/><data android:scheme="file"/><data android:mimeType="video/*"/></intent-filter></activity>
   </application>
 </manifest>
