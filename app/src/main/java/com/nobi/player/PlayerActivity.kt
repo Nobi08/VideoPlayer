@@ -1,5 +1,16 @@
 package com.nobi.player
+import android.Manifest
+import android.app.PendingIntent
 import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
+import android.util.Rational
+import androidx.core.content.ContextCompat
 import android.content.ContentValues
 import android.content.pm.ActivityInfo
 import android.content.res.ColorStateList
@@ -41,6 +52,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -69,6 +81,14 @@ class PlayerActivity : AppCompatActivity() {
   private var dragging = false
   private var abA = -1L
   private var abB = -1L
+  private lateinit var pv: PlayerView
+  private var plListener: Player.Listener? = null
+  private var pipRx: BroadcastReceiver? = null
+  private fun bgOn() = prefs.getBoolean("bg", true)
+  private fun autoNext() = prefs.getBoolean("autonext", true)
+  private fun autoPip() = prefs.getBoolean("autopip", true)
+  private fun seekSec() = prefs.getInt("seeksec", 10)
+  private val notifPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
   private val hideRun = Runnable { showCtrl(false) }
   private val rew = object : Runnable { override fun run() { seekBy(-1000); h.postDelayed(this, 150) } }
   private val abRun = object : Runnable { override fun run() { if (abB > 0 && p.currentPosition >= abB) p.seekTo(abA); h.postDelayed(this, 100) } }
@@ -84,6 +104,41 @@ class PlayerActivity : AppCompatActivity() {
     }
   }
 
+  private fun savePos() {
+    val k = curKey() ?: return
+    val d = p.duration; val pos = p.currentPosition
+    if (d > 0 && pos > d - 5000) prefs.edit().remove(k).apply() else prefs.edit().putLong(k, pos).apply()
+  }
+  private fun startBg() {
+    if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+      notifPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
+    PlaybackService.player = p
+    startService(Intent(this, PlaybackService::class.java))
+  }
+  private fun stopBg() { if (PlaybackService.player === p) PlaybackService.detach(this) }
+  private fun pipActions(): List<RemoteAction> {
+    if (Build.VERSION.SDK_INT < 26) return emptyList()
+    fun act(code: Int, res: Int, t: String, a: String) = RemoteAction(
+      Icon.createWithResource(this, res), t, t,
+      PendingIntent.getBroadcast(this, code, Intent(a).setPackage(packageName), PendingIntent.FLAG_IMMUTABLE))
+    return listOf(
+      act(1, R.drawable.ic_rew, "Back", "nobi.PIP_REW"),
+      if (p.isPlaying) act(2, R.drawable.ic_pause, "Pause", "nobi.PIP_PLAY") else act(2, R.drawable.ic_play, "Play", "nobi.PIP_PLAY"),
+      act(3, R.drawable.ic_fwd, "Forward", "nobi.PIP_FWD"))
+  }
+  private fun pipParams(): PictureInPictureParams? {
+    if (Build.VERSION.SDK_INT < 26 || !::p.isInitialized) return null
+    val b = PictureInPictureParams.Builder().setActions(pipActions())
+    val vs = p.videoSize
+    if (vs.width > 0 && vs.height > 0) {
+      val r = (vs.width * vs.pixelWidthHeightRatio) / vs.height
+      b.setAspectRatio(Rational((r.coerceIn(0.43f, 2.38f) * 1000).toInt(), 1000))
+    }
+    if (Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(autoPip() && p.isPlaying)
+    return b.build()
+  }
+  private fun updatePip() { if (Build.VERSION.SDK_INT >= 26) pipParams()?.let { try { setPictureInPictureParams(it) } catch (e: Exception) {} } }
+  private fun enterPip() { if (Build.VERSION.SDK_INT >= 26) pipParams()?.let { try { enterPictureInPictureMode(it) } catch (e: Exception) {} } }
   private fun curKey() = p.currentMediaItem?.localConfiguration?.uri?.toString()
   private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_LONG).show()
   private fun sx(f: Float) = (if (f == f.toInt().toFloat()) f.toInt().toString() else f.toString()) + "x"
@@ -161,22 +216,34 @@ class PlayerActivity : AppCompatActivity() {
   override fun onCreate(b: Bundle?) {
     super.onCreate(b)
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    val uris = intent.getStringArrayListExtra("uris") ?: arrayListOf(intent.dataString ?: "")
-    val names = intent.getStringArrayListExtra("names") ?: arrayListOf(intent.data?.lastPathSegment?.substringAfterLast('/') ?: "")
-    val v = PlayerView(this); v.useController = false
+    val re = intent.getBooleanExtra("reattach", false)
+    if (re && PlaybackService.player == null) { finish(); return }
+    val uris: ArrayList<String> = if (re) arrayListOf() else intent.getStringArrayListExtra("uris") ?: arrayListOf(intent.dataString ?: "")
+    val names: List<String> = if (re) PlaybackService.names else intent.getStringArrayListExtra("names") ?: arrayListOf(intent.data?.lastPathSegment?.substringAfterLast('/') ?: "")
+    val v = PlayerView(this); v.useController = false; pv = v
     val root = FrameLayout(this); root.setBackgroundColor(0xFF000000.toInt()); root.addView(v)
     ov = FrameLayout(this); root.addView(ov)
     ctrl = FrameLayout(this); ov.addView(ctrl)
     setContentView(root)
-    p = ExoPlayer.Builder(this)
-      .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
-      .setHandleAudioBecomingNoisy(true).build()
+    if (re) {
+      p = PlaybackService.player!!
+    } else {
+      PlaybackService.shutdown(this)
+      p = ExoPlayer.Builder(this)
+        .setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
+        .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build()
+      val si = intent.getIntExtra("i", 0).coerceIn(0, uris.size - 1)
+      val saved = prefs.getLong(uris[si], 0L)
+      p.setMediaItems(uris.mapIndexed { i, u ->
+        MediaItem.Builder().setUri(u).setMediaMetadata(MediaMetadata.Builder().setTitle(names.getOrNull(i) ?: "").build()).build()
+      }, si, if (saved > 5000) saved else 0L)
+      p.prepare(); p.play()
+      if (saved > 5000) Toast.makeText(this, "Resumed from ${fmt(saved)}", Toast.LENGTH_SHORT).show()
+    }
+    p.pauseAtEndOfMediaItems = !autoNext()
     v.player = p
     applySub(v)
-    val si = intent.getIntExtra("i", 0).coerceIn(0, uris.size - 1)
-    val saved = prefs.getLong(uris[si], 0L)
-    p.setMediaItems(uris.map { MediaItem.fromUri(it) }, si, if (saved > 5000) saved else 0L)
-    p.prepare(); p.play()
+    if (bgOn()) { PlaybackService.names = names; startBg() }
     WindowCompat.getInsetsController(window, v).apply {
       hide(WindowInsetsCompat.Type.systemBars())
       systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -229,11 +296,26 @@ class PlayerActivity : AppCompatActivity() {
     val gear = circ(42, 8, R.drawable.b_gear) {}
     gear.setOnClickListener {
       val m = PopupMenu(this, gear)
-      m.menu.add("Load subtitle file"); m.menu.add("Subtitle size"); m.menu.add("Subtitle color")
+      fun oo(b: Boolean) = if (b) "On" else "Off"
+      m.menu.add(0, 1, 0, "Background playback: ${oo(bgOn())}")
+      m.menu.add(0, 2, 0, "Auto play next: ${oo(autoNext())}")
+      m.menu.add(0, 3, 0, "Auto PiP on home: ${oo(autoPip())}")
+      m.menu.add(0, 4, 0, "Seek duration: ${seekSec()}s")
+      m.menu.add(0, 5, 0, "Load subtitle file"); m.menu.add(0, 6, 0, "Subtitle size"); m.menu.add(0, 7, 0, "Subtitle color")
       m.setOnMenuItemClickListener { it2 ->
-        when (it2.title.toString()) {
-          "Load subtitle file" -> subPick.launch(arrayOf("*/*"))
-          "Subtitle size" -> {
+        when (it2.itemId) {
+          1 -> { val on = !bgOn(); prefs.edit().putBoolean("bg", on).apply()
+            if (on) { PlaybackService.names = names; startBg() } else stopBg(); flash("Background: ${oo(on)}") }
+          2 -> { val on = !autoNext(); prefs.edit().putBoolean("autonext", on).apply(); p.pauseAtEndOfMediaItems = !on; flash("Auto next: ${oo(on)}") }
+          3 -> { val on = !autoPip(); prefs.edit().putBoolean("autopip", on).apply(); updatePip(); flash("Auto PiP: ${oo(on)}") }
+          4 -> {
+            val o = intArrayOf(5, 10, 15, 30, 60)
+            AlertDialog.Builder(this).setTitle("Seek duration").setSingleChoiceItems(o.map { "$it seconds" }.toTypedArray(), o.indexOf(seekSec())) { d, i ->
+              prefs.edit().putInt("seeksec", o[i]).apply(); flash("Seek ${o[i]}s"); d.dismiss()
+            }.show()
+          }
+          5 -> subPick.launch(arrayOf("*/*"))
+          6 -> {
             val n = arrayOf("Small", "Medium", "Large", "Huge"); val z = intArrayOf(16, 20, 26, 34)
             AlertDialog.Builder(this).setItems(n) { _, i -> prefs.edit().putInt("subsz", z[i]).apply(); applySub(v) }.show()
           }
@@ -290,11 +372,12 @@ class PlayerActivity : AppCompatActivity() {
       layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
       setOnClickListener { if (p.isPlaying) p.pause() else p.play() }
     }
-    val sp = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
+    val sp = floatArrayOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 3f, 4f)
     val speed = circ(42, 8, R.drawable.b_speed) {}
     speed.setOnClickListener {
-      AlertDialog.Builder(this).setItems(sp.map { sx(it) }.toTypedArray()) { _, i ->
-        p.setPlaybackSpeed(sp[i]); prefs.edit().putFloat("speed", sp[i]).apply(); flash(sx(sp[i]))
+      val cs = sp.indexOfFirst { it == p.playbackParameters.speed }
+      AlertDialog.Builder(this).setTitle("Playback speed").setSingleChoiceItems(sp.map { sx(it) }.toTypedArray(), cs) { d, i ->
+        p.setPlaybackSpeed(sp[i]); prefs.edit().putFloat("speed", sp[i]).apply(); flash(sx(sp[i])); d.dismiss()
       }.show()
     }
     prefs.getFloat("speed", 1f).let { if (it != 1f) { p.setPlaybackSpeed(it) } }
@@ -304,9 +387,7 @@ class PlayerActivity : AppCompatActivity() {
     val aspect = circ(42, 8, R.drawable.b_full) {
       mi = (mi + 1) % 3; v.resizeMode = modes[mi]; prefs.edit().putInt("aspect", mi).apply(); flash(modeNames[mi])
     }
-    val pip = circ(42, 8, R.drawable.b_pip) {
-      if (Build.VERSION.SDK_INT >= 26) enterPictureInPictureMode(PictureInPictureParams.Builder().build())
-    }
+    val pip = circ(42, 8, R.drawable.b_pip) { enterPip() }
     fun gapView() = View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) }
     val bottom = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(4), dp(8), dp(8)) }
     bottom.addView(mute); bottom.addView(gapView())
@@ -317,12 +398,19 @@ class PlayerActivity : AppCompatActivity() {
     bottom.addView(speed); bottom.addView(aspect); bottom.addView(pip)
     ctrl.addView(bottom, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
 
+    val skipRow = LinearLayout(this).apply { gravity = Gravity.CENTER }
+    skipRow.addView(circ(48, 10, R.drawable.b_rew) { seekBy(-seekSec() * 1000L); flash("-${seekSec()}s") })
+    skipRow.addView(View(this), LinearLayout.LayoutParams(dp(110), 1))
+    skipRow.addView(circ(48, 10, R.drawable.b_fwd) { seekBy(seekSec() * 1000L); flash("+${seekSec()}s") })
+    ctrl.addView(skipRow, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+
     root.addView(hud, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(80) })
     root.addView(gBright, FrameLayout.LayoutParams(dp(60), -2, Gravity.START or Gravity.CENTER_VERTICAL).apply { marginStart = dp(76) })
     root.addView(gVol, FrameLayout.LayoutParams(dp(60), -2, Gravity.END or Gravity.CENTER_VERTICAL).apply { marginEnd = dp(76) })
 
-    p.addListener(object : Player.Listener {
-      override fun onIsPlayingChanged(pl: Boolean) { play.setImageResource(if (pl) R.drawable.b_pause else R.drawable.b_play) }
+    plListener = object : Player.Listener {
+      override fun onIsPlayingChanged(pl: Boolean) { play.setImageResource(if (pl) R.drawable.b_pause else R.drawable.b_play); updatePip() }
+      override fun onVideoSizeChanged(vs: androidx.media3.common.VideoSize) { updatePip() }
       override fun onMediaItemTransition(m: MediaItem?, r: Int) {
         ttl.text = names.getOrNull(p.currentMediaItemIndex) ?: ""
         if (r == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) lastKey?.let { prefs.edit().remove(it).apply() }
@@ -333,7 +421,9 @@ class PlayerActivity : AppCompatActivity() {
         abA = -1L; abB = -1L; h.removeCallbacks(abRun)
       }
       override fun onPlaybackStateChanged(st: Int) { if (st == Player.STATE_ENDED) curKey()?.let { prefs.edit().remove(it).apply() } }
-    })
+    }
+    p.addListener(plListener!!)
+    play.setImageResource(if (p.isPlaying) R.drawable.b_pause else R.drawable.b_play)
     val tick = object : Runnable {
       override fun run() {
         if (!dragging) {
@@ -341,7 +431,7 @@ class PlayerActivity : AppCompatActivity() {
           sb.max = d.toInt(); sb.progress = p.currentPosition.toInt()
           cur.text = fmt(p.currentPosition); dur.text = fmt(d)
         }
-        if (p.isPlaying) curKey()?.let { prefs.edit().putLong(it, p.currentPosition).apply() }
+        if (p.isPlaying) savePos()
         h.postDelayed(this, 500)
       }
     }
@@ -355,8 +445,8 @@ class PlayerActivity : AppCompatActivity() {
       override fun onSingleTapConfirmed(e: MotionEvent): Boolean { showCtrl(lockBtn.visibility != View.VISIBLE); return true }
       override fun onDoubleTap(e: MotionEvent): Boolean {
         val x = e.x / v.width
-        if (x < 0.4f) { seekBy(-10000); flash("-10s") }
-        else if (x > 0.6f) { seekBy(10000); flash("+10s") }
+        if (x < 0.4f) { seekBy(-seekSec() * 1000L); flash("-${seekSec()}s") }
+        else if (x > 0.6f) { seekBy(seekSec() * 1000L); flash("+${seekSec()}s") }
         else if (p.isPlaying) p.pause() else p.play()
         return true
       }
@@ -401,13 +491,48 @@ class PlayerActivity : AppCompatActivity() {
     showCtrl(true)
   }
 
+  override fun onUserLeaveHint() {
+    super.onUserLeaveHint()
+    if (::p.isInitialized && Build.VERSION.SDK_INT in 26..30 && autoPip() && p.isPlaying) enterPip()
+  }
   override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
     super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
     ov.visibility = if (isInPictureInPictureMode) View.GONE else View.VISIBLE
+    if (isInPictureInPictureMode) {
+      val rx = object : BroadcastReceiver() {
+        override fun onReceive(c: Context?, i: Intent?) {
+          when (i?.action) {
+            "nobi.PIP_REW" -> seekBy(-seekSec() * 1000L)
+            "nobi.PIP_FWD" -> seekBy(seekSec() * 1000L)
+            "nobi.PIP_PLAY" -> if (p.isPlaying) p.pause() else p.play()
+          }
+          updatePip()
+        }
+      }
+      pipRx = rx
+      val f = IntentFilter().apply { addAction("nobi.PIP_REW"); addAction("nobi.PIP_PLAY"); addAction("nobi.PIP_FWD") }
+      ContextCompat.registerReceiver(this, rx, f, ContextCompat.RECEIVER_NOT_EXPORTED)
+      updatePip()
+    } else {
+      pipRx?.let { try { unregisterReceiver(it) } catch (e: Exception) {} }; pipRx = null
+    }
   }
   override fun onStop() {
-    super.onStop(); p.pause()
-    if (p.playbackState != Player.STATE_ENDED) curKey()?.let { prefs.edit().putLong(it, p.currentPosition).apply() }
+    super.onStop()
+    if (!::p.isInitialized) return
+    if (p.playbackState != Player.STATE_ENDED) savePos()
+    if (isInPictureInPictureMode) { p.pause(); finish(); return }   // PiP window was closed
+    if (!bgOn()) p.pause()
   }
-  override fun onDestroy() { super.onDestroy(); h.removeCallbacksAndMessages(null); p.release() }
+  override fun onDestroy() {
+    super.onDestroy()
+    h.removeCallbacksAndMessages(null)
+    pipRx?.let { try { unregisterReceiver(it) } catch (e: Exception) {} }; pipRx = null
+    if (!::p.isInitialized) return
+    plListener?.let { p.removeListener(it) }
+    if (::pv.isInitialized) pv.player = null
+    val keep = !isFinishing && bgOn() && p.playWhenReady && PlaybackService.player === p
+    if (keep) return                       // service keeps playing in background
+    if (PlaybackService.player === p) PlaybackService.shutdown(this) else try { p.release() } catch (e: Exception) {}
+  }
 }
