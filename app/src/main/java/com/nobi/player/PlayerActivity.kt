@@ -391,17 +391,17 @@ class PlayerActivity : AppCompatActivity() {
     fun gapView() = View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) }
     val bottom = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(4), dp(8), dp(8)) }
     bottom.addView(mute); bottom.addView(gapView())
-    bottom.addView(circ(42, 8, R.drawable.b_prev) { p.seekToPreviousMediaItem() })
+    bottom.addView(circ(36, 7, R.drawable.b_prev) { p.seekToPreviousMediaItem() })
     bottom.addView(play)
-    bottom.addView(circ(42, 8, R.drawable.b_next) { p.seekToNextMediaItem() })
+    bottom.addView(circ(36, 7, R.drawable.b_next) { p.seekToNextMediaItem() })
     bottom.addView(gapView())
     bottom.addView(speed); bottom.addView(aspect); bottom.addView(pip)
     ctrl.addView(bottom, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
 
     val skipRow = LinearLayout(this).apply { gravity = Gravity.CENTER }
-    skipRow.addView(circ(48, 10, R.drawable.b_rew) { seekBy(-seekSec() * 1000L); flash("-${seekSec()}s") })
-    skipRow.addView(View(this), LinearLayout.LayoutParams(dp(110), 1))
-    skipRow.addView(circ(48, 10, R.drawable.b_fwd) { seekBy(seekSec() * 1000L); flash("+${seekSec()}s") })
+    skipRow.addView(circ(42, 8, R.drawable.b_rew) { seekBy(-seekSec() * 1000L); flash("-${seekSec()}s") })
+    skipRow.addView(View(this), LinearLayout.LayoutParams(dp(80), 1))
+    skipRow.addView(circ(42, 8, R.drawable.b_fwd) { seekBy(seekSec() * 1000L); flash("+${seekSec()}s") })
     ctrl.addView(skipRow, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
 
     root.addView(hud, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(80) })
