@@ -1,0 +1,150 @@
+[
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_play.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/play.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_forward.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/forward.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_prev.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_prev.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_back.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_back.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_lock.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/lock.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_volume_slider.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/volume_slider.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_equalizer.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/equalizer.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_pip.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_pip.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_pip.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/pip.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_contrast.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/contrast.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_fullscreen.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/fullscreen.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_vol.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_vol.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_repeat.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/repeat.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_volume.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/volume.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_lock.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_lock.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_rot_port.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_rot_port.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_unlock.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_unlock.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_audio.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_audio.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_rewind.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/rewind.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_subtitles.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/subtitles.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_brightness.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/brightness.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_next.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_next.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_settings.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/settings.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_crop.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/crop.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_speed.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/speed.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_rotate.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/rotate.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_play.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_play.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_more.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_more.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_next.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/next.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_shuffle.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/shuffle.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_previous.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/previous.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_rot_land.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_rot_land.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable_ic_pause.xml.flat",
+        "source": "com.nobi.player.app-main-29:/drawable/ic_pause.xml"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_mute.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/mute.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_ab_loop.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/ab_loop.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_cast.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/cast.png"
+    },
+    {
+        "merged": "com.nobi.player.app-debug-27:/drawable-nodpi_pause.png.flat",
+        "source": "com.nobi.player.app-main-29:/drawable-nodpi/pause.png"
+    }
+]
