@@ -12,19 +12,3 @@ dependencies {
   implementation("androidx.media3:media3-session:1.3.1")
   implementation("androidx.appcompat:appcompat:1.7.0")
 }
-
-android {
-    signingConfigs {
-        create("githubConfig") {
-            storeFile = file("../github-keystore.jks")
-            storePassword = "actionspass"
-            keyAlias = "github-alias"
-            keyPassword = "actionspass"
-        }
-    }
-    buildTypes {
-        getByName("debug") {
-            signingConfig = signingConfigs.getByName("githubConfig")
-        }
-    }
-}
